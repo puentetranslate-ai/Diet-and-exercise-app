@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Wand2, Check, RefreshCw, Target } from 'lucide-react'
+import { Sparkles, Wand2, Check, RefreshCw, Target, TrendingDown, Leaf } from 'lucide-react'
 import { useStore } from '../store/useStore.js'
-import { buildPlan, macrosForMeal } from '../lib/nutrition.js'
-import { generateMeal, TEMPLATE_LIST } from '../lib/mealEngine.js'
+import { buildPlan, macrosForMeal, GOALS } from '../lib/nutrition.js'
+import { generateMealOptions, TEMPLATE_LIST } from '../lib/mealEngine.js'
 import { Segmented, SectionTitle, Pill, fadeUp } from './ui/Primitives.jsx'
 
 const MEAL_TYPES = [
@@ -13,7 +13,7 @@ const MEAL_TYPES = [
   { value: 'snack', label: 'Snack' },
 ]
 
-const SUGGESTIONS = ['Burrito bowl', 'Pasta', 'Burger', 'Stir-fry', 'Tacos', 'Salad', 'Smoothie', 'Curry', 'Pizza']
+const SUGGESTIONS = ['Pizza', 'Burger', 'Pasta', 'Tacos', 'Stir-fry', 'Burrito bowl', 'Salad', 'Curry', 'Smoothie']
 
 export default function MealPlanner() {
   const { profile, addMeal } = useStore()
@@ -21,30 +21,35 @@ export default function MealPlanner() {
   const [mealType, setMealType] = useState(defaultMealType())
   const [craving, setCraving] = useState('')
   const [result, setResult] = useState(null)
-  const [logged, setLogged] = useState(false)
+  const [selected, setSelected] = useState(0)
+  const [loggedKey, setLoggedKey] = useState(null)
 
   const target = macrosForMeal(plan, mealType)
+  const goalLabel = (GOALS.find((g) => g.id === profile.goal) || {}).label?.toLowerCase() || 'goal'
 
   const generate = (text) => {
     const q = text ?? craving
     setCraving(q)
-    setResult(generateMeal(q, target, profile.dietPref))
-    setLogged(false)
+    setResult(generateMealOptions(q, target, profile))
+    setSelected(0)
+    setLoggedKey(null)
   }
 
+  const option = result?.options[selected]
+
   const logIt = () => {
-    if (!result) return
+    if (!option) return
     addMeal({
-      title: result.title,
+      title: `${result.title} · ${option.label}`,
       emoji: result.emoji,
       mealType,
-      kcal: result.totals.kcal,
-      protein: result.totals.protein,
-      carbs: result.totals.carbs,
-      fat: result.totals.fat,
-      items: result.items.map((i) => ({ name: i.name, grams: i.grams, household: i.household })),
+      kcal: option.totals.kcal,
+      protein: option.totals.protein,
+      carbs: option.totals.carbs,
+      fat: option.totals.fat,
+      items: option.items.map((i) => ({ name: i.name, grams: i.grams, household: i.household })),
     })
-    setLogged(true)
+    setLoggedKey(option.key)
   }
 
   return (
@@ -52,7 +57,7 @@ export default function MealPlanner() {
       <motion.div {...fadeUp}>
         <h1 className="font-display text-2xl font-extrabold text-white">Meal Planner</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Tell us what you're craving — we'll build a version that fits your macros.
+          Tell us what you're craving — we'll show a few versions that fit your {goalLabel} plan.
         </p>
       </motion.div>
 
@@ -76,7 +81,7 @@ export default function MealPlanner() {
         <div className="flex gap-2">
           <input
             className="input"
-            placeholder="e.g. cheeseburger, pad thai, a big salad…"
+            placeholder="e.g. pizza, cheeseburger, pad thai…"
             value={craving}
             onChange={(e) => setCraving(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && generate()}
@@ -100,7 +105,7 @@ export default function MealPlanner() {
 
       {/* Result */}
       <AnimatePresence mode="wait">
-        {result && (
+        {result && option && (
           <motion.div
             key={result.title + craving}
             initial={{ opacity: 0, y: 16 }}
@@ -112,12 +117,13 @@ export default function MealPlanner() {
               <div className="flex items-center gap-3">
                 <span className="text-4xl">{result.emoji}</span>
                 <div>
-                  <h2 className="font-display text-xl font-extrabold text-white">{result.title}</h2>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Pill tone={result.fit >= 85 ? 'green' : result.fit >= 70 ? 'amber' : 'red'}>
-                      <Sparkles size={11} /> {result.fit}% macro match
-                    </Pill>
-                  </div>
+                  <h2 className="font-display text-xl font-extrabold text-white">{result.title}, your way</h2>
+                  {result.classicKcal > 0 && (
+                    <p className="text-xs text-slate-400">
+                      A typical {result.title.toLowerCase()} ≈{' '}
+                      <span className="font-semibold text-slate-300">{result.classicKcal} kcal</span>. Pick a version that fits:
+                    </p>
+                  )}
                 </div>
               </div>
               <button onClick={() => generate()} className="btn-ghost px-3 py-2" title="Regenerate">
@@ -125,21 +131,68 @@ export default function MealPlanner() {
               </button>
             </div>
 
-            <p className="mt-3 text-sm text-slate-400">{result.method}</p>
-
-            {/* Macro summary vs target */}
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              <ResultMacro label="kcal" value={result.totals.kcal} target={target.calories} />
-              <ResultMacro label="protein" value={result.totals.protein} target={target.protein} unit="g" />
-              <ResultMacro label="carbs" value={result.totals.carbs} target={target.carbs} unit="g" />
-              <ResultMacro label="fat" value={result.totals.fat} target={target.fat} unit="g" />
+            {/* Option selector */}
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {result.options.map((o, i) => {
+                const active = i === selected
+                return (
+                  <button
+                    key={o.key}
+                    onClick={() => setSelected(i)}
+                    className={`rounded-2xl border px-3 py-3 text-left transition ${
+                      active ? 'border-leaf-400/60 bg-leaf-500/10 shadow-glow' : 'border-white/8 bg-white/[0.03] hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-sm font-bold text-white">
+                      {o.key === 'lean' && <Leaf size={13} className="text-leaf-300" />}
+                      {o.label}
+                    </div>
+                    <div className="mt-0.5 font-display text-lg font-extrabold text-white">{o.totals.kcal} <span className="text-xs font-semibold text-slate-400">kcal</span></div>
+                    {o.saved > 0 && (
+                      <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-leaf-300">
+                        <TrendingDown size={11} /> ~{o.saved} kcal lighter
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+
+            {/* Selected option detail */}
+            <p className="mt-4 text-sm text-slate-300">{option.note}</p>
+            <p className="mt-1 text-sm text-slate-400">{option.method}</p>
+
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              <ResultMacro label="kcal" value={option.totals.kcal} target={target.calories} />
+              <ResultMacro label="protein" value={option.totals.protein} target={target.protein} unit="g" />
+              <ResultMacro label="carbs" value={option.totals.carbs} target={target.carbs} unit="g" />
+              <ResultMacro label="fat" value={option.totals.fat} target={target.fat} unit="g" />
+            </div>
+
+            {/* Smart swaps */}
+            {option.swaps?.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-leaf-500/15 bg-leaf-500/5 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-leaf-300">
+                  <Sparkles size={13} /> Smart swaps
+                </div>
+                <ul className="space-y-1.5">
+                  {option.swaps.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-leaf-400" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Ingredients */}
             <div className="mt-5">
-              <SectionTitle>Build it with</SectionTitle>
+              <SectionTitle>
+                Build it with <Pill tone={option.fit >= 85 ? 'green' : 'amber'}>{option.fit}% macro match</Pill>
+              </SectionTitle>
               <ul className="space-y-2">
-                {result.items.map((it, i) => (
+                {option.items.map((it, i) => (
                   <li key={i} className="flex items-center justify-between rounded-2xl bg-white/[0.03] px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <RoleDot role={it.role} />
@@ -154,15 +207,11 @@ export default function MealPlanner() {
               </ul>
             </div>
 
-            <button onClick={logIt} disabled={logged} className={`mt-5 w-full ${logged ? 'btn-ghost' : 'btn-primary'}`}>
-              {logged ? (
-                <>
-                  <Check size={16} /> Logged to today
-                </>
+            <button onClick={logIt} disabled={loggedKey === option.key} className={`mt-5 w-full ${loggedKey === option.key ? 'btn-ghost' : 'btn-primary'}`}>
+              {loggedKey === option.key ? (
+                <><Check size={16} /> Logged to today</>
               ) : (
-                <>
-                  <Check size={16} /> Log this {mealType}
-                </>
+                <><Check size={16} /> Log this {mealType}</>
               )}
             </button>
           </motion.div>
@@ -204,10 +253,7 @@ function ResultMacro({ label, value, target, unit = '' }) {
   const close = Math.abs(diff) <= Math.max(5, target * 0.12)
   return (
     <div className="rounded-2xl bg-white/[0.03] py-2.5 text-center">
-      <div className="font-display text-lg font-extrabold text-white">
-        {value}
-        {unit}
-      </div>
+      <div className="font-display text-lg font-extrabold text-white">{value}{unit}</div>
       <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`text-[10px] font-semibold ${close ? 'text-leaf-300' : 'text-amber-300'}`}>
         {diff === 0 ? 'on target' : `${diff > 0 ? '+' : ''}${diff}${unit}`}
@@ -218,13 +264,8 @@ function ResultMacro({ label, value, target, unit = '' }) {
 
 function RoleDot({ role }) {
   const map = {
-    protein: '#f472b6',
-    carb: '#fbbf24',
-    fat: '#60a5fa',
-    dairy: '#60a5fa',
-    veg: '#34d399',
-    fruit: '#fb7185',
-    sauce: '#a78bfa',
+    protein: '#f472b6', carb: '#fbbf24', fat: '#60a5fa', dairy: '#60a5fa',
+    veg: '#34d399', fruit: '#fb7185', sauce: '#a78bfa',
   }
   return <span className="h-2.5 w-2.5 rounded-full" style={{ background: map[role] || '#94a3b8' }} />
 }
