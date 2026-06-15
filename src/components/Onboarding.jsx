@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react'
 import { useStore } from '../store/useStore.js'
 import { ACTIVITY_LEVELS, GOALS, buildPlan } from '../lib/nutrition.js'
-import { Segmented } from './ui/Primitives.jsx'
+import { Segmented, NumField } from './ui/Primitives.jsx'
 
 const STEPS = ['You', 'Body', 'Activity', 'Goal', 'Training', 'Plan']
 
@@ -79,41 +79,21 @@ export default function Onboarding() {
               <Card title="Your body" subtitle="Used to estimate your daily energy needs.">
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Age">
-                    <input
-                      type="number"
-                      className="input"
-                      value={profile.age}
-                      onChange={(e) => setProfile({ age: clampNum(e.target.value, 13, 100) })}
-                    />
+                    <NumField value={profile.age} min={13} max={100} onChange={(v) => setProfile({ age: v })} />
                   </Field>
                   <Field label="Weight (lb)">
-                    <input
-                      type="number"
-                      className="input"
-                      value={profile.weightLb}
-                      onChange={(e) => setProfile({ weightLb: clampNum(e.target.value, 70, 600) })}
-                    />
+                    <NumField value={profile.weightLb} min={70} max={700} onChange={(v) => setProfile({ weightLb: v })} />
                   </Field>
                 </div>
                 <div className="mt-4">
                   <label className="label">Height</label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        className="input"
-                        value={ft}
-                        onChange={(e) => setProfile({ heightIn: clampNum(e.target.value, 3, 8) * 12 + inch })}
-                      />
+                      <NumField value={ft} min={3} max={8} onChange={(v) => setProfile({ heightIn: v * 12 + inch })} />
                       <span className="text-sm text-slate-400">ft</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        className="input"
-                        value={inch}
-                        onChange={(e) => setProfile({ heightIn: ft * 12 + clampNum(e.target.value, 0, 11) })}
-                      />
+                      <NumField value={inch} min={0} max={11} onChange={(v) => setProfile({ heightIn: ft * 12 + v })} />
                       <span className="text-sm text-slate-400">in</span>
                     </div>
                   </div>
@@ -332,9 +312,4 @@ function Info({ k, v }) {
       <span className="font-semibold text-slate-200">{v}</span>
     </div>
   )
-}
-
-function clampNum(v, lo, hi) {
-  const n = Number(v) || 0
-  return Math.max(lo, Math.min(hi, n))
 }

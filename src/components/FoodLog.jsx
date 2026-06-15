@@ -5,7 +5,7 @@ import { useStore, dayTotals } from '../store/useStore.js'
 import { buildPlan } from '../lib/nutrition.js'
 import { searchFoods, macrosFor } from '../lib/foods.js'
 import { todayKey } from '../lib/date.js'
-import { MacroBar, SectionTitle, Pill, fadeUp } from './ui/Primitives.jsx'
+import { MacroBar, SectionTitle, Pill, NumField, fadeUp } from './ui/Primitives.jsx'
 
 export default function FoodLog() {
   const { profile, logs, addMeal, removeMeal, addWater } = useStore()
@@ -126,12 +126,7 @@ export default function FoodLog() {
           <div className="mt-3 space-y-3 rounded-2xl bg-white/[0.03] p-4">
             <div className="flex items-center gap-3">
               <label className="text-xs font-semibold text-slate-400">Amount</label>
-              <input
-                type="number"
-                className="input flex-1 py-2"
-                value={grams}
-                onChange={(e) => setGrams(Math.max(0, Number(e.target.value)))}
-              />
+              <NumField value={grams} min={1} max={2000} onChange={setGrams} className="input flex-1 py-2" />
               <span className="text-sm text-slate-400">grams</span>
             </div>
             {preview && (

@@ -5,7 +5,7 @@ import { Scale, Plus, Settings2, RotateCcw, TrendingDown, TrendingUp } from 'luc
 import { useStore } from '../store/useStore.js'
 import { buildPlan, ACTIVITY_LEVELS, GOALS } from '../lib/nutrition.js'
 import { todayKey, shortDate } from '../lib/date.js'
-import { Segmented, SectionTitle, Stat, Pill, fadeUp } from './ui/Primitives.jsx'
+import { Segmented, SectionTitle, Stat, Pill, NumField, fadeUp } from './ui/Primitives.jsx'
 
 export default function Profile() {
   const { profile, setProfile, weights, logWeight, reset } = useStore()
@@ -99,10 +99,10 @@ export default function Profile() {
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Age">
-            <input type="number" className="input" value={profile.age} onChange={(e) => setProfile({ age: clamp(e.target.value, 13, 100) })} />
+            <NumField value={profile.age} min={13} max={100} onChange={(v) => setProfile({ age: v })} />
           </Field>
           <Field label="Weight (lb)">
-            <input type="number" className="input" value={profile.weightLb} onChange={(e) => setProfile({ weightLb: clamp(e.target.value, 70, 600) })} />
+            <NumField value={profile.weightLb} min={70} max={700} onChange={(v) => setProfile({ weightLb: v })} />
           </Field>
         </div>
 
@@ -110,11 +110,11 @@ export default function Profile() {
           <label className="label">Height</label>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
-              <input type="number" className="input" value={ft} onChange={(e) => setProfile({ heightIn: clamp(e.target.value, 3, 8) * 12 + inch })} />
+              <NumField value={ft} min={3} max={8} onChange={(v) => setProfile({ heightIn: v * 12 + inch })} />
               <span className="text-sm text-slate-400">ft</span>
             </div>
             <div className="flex items-center gap-2">
-              <input type="number" className="input" value={inch} onChange={(e) => setProfile({ heightIn: ft * 12 + clamp(e.target.value, 0, 11) })} />
+              <NumField value={inch} min={0} max={11} onChange={(v) => setProfile({ heightIn: ft * 12 + v })} />
               <span className="text-sm text-slate-400">in</span>
             </div>
           </div>
@@ -185,9 +185,4 @@ function Field({ label, children }) {
       {children}
     </div>
   )
-}
-
-function clamp(v, lo, hi) {
-  const n = Number(v) || 0
-  return Math.max(lo, Math.min(hi, n))
 }

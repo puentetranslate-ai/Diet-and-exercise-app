@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 const MACRO_COLORS = {
@@ -125,6 +126,49 @@ export function Pill({ children, tone = 'slate' }) {
     <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${tones[tone]}`}>
       {children}
     </span>
+  )
+}
+
+// Numeric input that lets you type freely (including clearing the field) and
+// only clamps to [min, max] when you finish editing (blur). This avoids the
+// "snaps to minimum on every keystroke" trap of clamping in onChange.
+export function NumField({ value, min = 0, max = Infinity, onChange, className = 'input', ...rest }) {
+  const [txt, setTxt] = useState(value == null ? '' : String(value))
+  const [editing, setEditing] = useState(false)
+
+  // Keep in sync with external value only while the user isn't typing.
+  useEffect(() => {
+    if (!editing) setTxt(value == null ? '' : String(value))
+  }, [value, editing])
+
+  const commit = () => {
+    setEditing(false)
+    let n = parseFloat(txt)
+    if (txt === '' || Number.isNaN(n)) n = value ?? min
+    n = Math.max(min, Math.min(max, n))
+    setTxt(String(n))
+    onChange(n)
+  }
+
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      className={className}
+      value={txt}
+      onFocus={() => setEditing(true)}
+      onChange={(e) => {
+        const raw = e.target.value
+        setTxt(raw)
+        const n = parseFloat(raw)
+        if (raw !== '' && !Number.isNaN(n)) onChange(n) // live, unclamped
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+      }}
+      {...rest}
+    />
   )
 }
 
